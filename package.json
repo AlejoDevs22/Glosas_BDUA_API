@@ -1,0 +1,20 @@
+{
+  "name": "glosa-afil",
+  "version": "1.0.0",
+  "description": "Proyecto ETL para glosa afiliaciones",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "serve": "node src/server.js",
+    "run-json": "node src/index.js --json",
+    "migrate": "node src/migration/migrar.js",
+    "test-connections": "node src/testConexion.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2",
+    "mssql": "^12.2.1",
+    "oracledb": "^6.10.0"
+  },
+  "type": "commonjs"
+}

@@ -1,0 +1,77 @@
+# Instrucciones de uso
+
+1. Instalar dependencias:
+   npm install
+
+2. Configurar variables de entorno:
+   - Crea un archivo `.env` en la raíz del proyecto.
+   - Debe contener las credenciales de SQL Server y Oracle usadas en `src/config/sqlserver.js` y `src/config/oracle.js`.
+
+3. Probar conexiones:
+   npm run test-connections
+
+## Uso normal por CLI
+
+Ejecutar proceso sin límite de registros:
+   node src/index.js NS
+
+Ejecutar proceso con límite de 100 registros:
+   node src/index.js NS 100
+
+Ejecutar proceso y luego lanzar el job Oracle:
+   node src/index.js MC 100 J
+
+Ejecutar proceso sin límite y lanzar el job Oracle:
+   node src/index.js MC J
+
+## Uso con JSON
+
+Enviar parámetros como JSON para que cualquier persona pueda usar el servicio con soporte de proceso, cantidad y job:
+
+   node src/index.js '{"proceso":"MC","cantidad":100,"j":"J"}'
+
+También se acepta la opción `--json`:
+
+   node src/index.js --json '{"proceso":"NC","cantidad":0,"j":true}'
+
+## Campos de entrada JSON
+
+- `proceso`: Código del proceso, por ejemplo `MC`, `NC`, `NS`, `MS`, `R1`, `S1`.
+- `cantidad`: Número de registros a procesar. `0` o vacío significa sin límite.
+- `j`: Indica si se debe ejecutar el job Oracle. Puede ser `"J"`, `true`, `1`, `"YES"`, etc.
+
+## Probar desde Postman
+
+1. Inicia la API HTTP:
+   npm run serve
+
+   Si el puerto 3000 ya está ocupado, usa otro puerto:
+   - PowerShell:
+     $env:PORT=3001; npm run serve
+   - CMD:
+     set PORT=3001&& npm run serve
+
+2. En Postman, crea una petición POST a:
+   http://localhost:3000/run
+
+   Si cambiaste el puerto, reemplaza `3000` por el puerto elegido.
+
+3. En la pestaña Body selecciona `raw` y `JSON`.
+
+4. Usa un cuerpo JSON como este:
+   {
+     "proceso": "MC",
+     "cantidad": 100,
+     "j": "J"
+   }
+
+5. Envía la petición.
+
+6. La respuesta será JSON con estado y detalles del proceso:
+   - `success`: `true` o `false`
+   - `details`: información del proceso ejecutado
+   - `error`: mensaje si falló
+
+## Ejecución recomendada
+
+   npm run run-json -- '{"proceso":"MC","cantidad":0,"j":"J"}'
