@@ -1,6 +1,6 @@
 require("dotenv").config();
 const express = require("express");
-const { parseJsonPayload, runProcess } = require("./jsonRunner");
+const { parseJsonPayload, runProcess, runObtenerFechas, runProcessMes } = require("./jsonRunner");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +11,16 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Servicio activo" });
 });
 
+app.get("/fechas/:proceso", async (req, res) => {
+  try {
+    const { proceso } = req.params;
+    const fechas = await runObtenerFechas(proceso);
+    res.json({ codigo: "0", mensaje: "Fechas obtenidas exitosamente", fechas });
+  } catch (err) {
+    res.status(400).json({ codigo: "1", mensaje: err.message, error: err.message });
+  }
+});
+
 app.post("/run", async (req, res) => {
   try {
     const payload = parseJsonPayload(req.body);
@@ -18,6 +28,19 @@ app.post("/run", async (req, res) => {
     res.json({ codigo: "0", mensaje: "Proceso iniciado", details: result });
   } catch (err) {
     res.status(400).json({ codigo: "1", mensaje: err.message, error: err.message });
+  }
+});
+
+app.post("/run-mes", async (req, res) => {
+  try {
+    const { proceso, mes, anio, ejecutarJob, limite } = req.body;
+    if (!proceso || !mes || !anio) {
+      return res.status(400).json({ codigo: "1", mensaje: "Debe proporcionar proceso, mes y anio en el cuerpo de la petición." });
+    }
+    const result = await runProcessMes({ proceso, mes, anio, ejecutarJob, limite });
+    res.json({ codigo: "0", mensaje: "Migración mensual completada", details: result });
+  } catch (err) {
+    res.status(500).json({ codigo: "1", mensaje: err.message, error: err.message });
   }
 });
 

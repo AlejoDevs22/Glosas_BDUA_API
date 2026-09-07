@@ -35,8 +35,9 @@ function parseJsonPayload(payloadInput) {
   }
 
   const ejecutarJob = parseJobFlag(payload.j ?? payload.job ?? payload.ejecutarJob);
+  const periodo = payload.periodo ?? payload.period ?? payload.fecha ?? payload.fechaProceso ?? payload.fecha_proceso ?? payload.date ?? null;
 
-  return { proceso, limite, ejecutarJob };
+  return { proceso, limite, ejecutarJob, periodo };
 }
 
 function parseJobFlag(value) {
@@ -60,12 +61,12 @@ async function ejecutarJobOracle(oracleConn, proceso) {
   }
 }
 
-async function runProcess({ proceso, limite = 0, ejecutarJob = false }) {
+async function runProcess({ proceso, limite = 0, ejecutarJob = false, periodo = null }) {
   if (!proceso) {
     throw new Error('Debe especificarse el proceso. Usa "proceso" en el JSON.');
   }
 
-  console.log(`📌 Proceso: ${proceso} | Límite: ${limite === 0 ? 'sin límite' : limite} registros | Job: ${ejecutarJob ? 'SÍ' : 'NO'}`);
+  console.log(`📌 Proceso: ${proceso} | Límite: ${limite === 0 ? 'sin límite' : limite} registros | Job: ${ejecutarJob ? 'SÍ' : 'NO'}${periodo ? ` | Periodo: ${periodo}` : ''}`);
 
   let sqlConn = null;
   let oracleConn = null;
@@ -77,7 +78,7 @@ async function runProcess({ proceso, limite = 0, ejecutarJob = false }) {
     console.log("🔌 Conectando a Oracle...");
     oracleConn = await oracledb.getConnection(oracleConfig);
 
-    await migrar(proceso, sqlConn, oracleConn, limite);
+    await migrar(proceso, sqlConn, oracleConn, limite, periodo);
 
     if (ejecutarJob) {
       await ejecutarJobOracle(oracleConn, proceso);
@@ -94,4 +95,246 @@ async function runProcess({ proceso, limite = 0, ejecutarJob = false }) {
   }
 }
 
-module.exports = { parseJsonPayload, runProcess };
+async function runObtenerFechas(procesoNombre) {
+  if (!procesoNombre) {
+    throw new Error('Debe especificarse el proceso en la URL.');
+  }
+
+  const procesos = require("./config/procesos");
+  const nombreProceso = procesoNombre.toUpperCase().trim();
+  const proceso = procesos[nombreProceso];
+
+  if (!proceso) {
+    throw new Error(`Proceso "${nombreProceso}" no encontrado en procesos.js`);
+  }
+
+  const campoFechaConfig = proceso.campos.find(c => c.destino === "EGAF_FECHA_PROCESO");
+  const campoFechaOrigen = campoFechaConfig ? campoFechaConfig.origen.trim() : null;
+
+  if (!campoFechaOrigen) {
+    throw new Error(`El proceso "${nombreProceso}" no tiene un campo de fecha origen mapeado a EGAF_FECHA_PROCESO.`);
+  }
+
+  console.log(`📌 Obteniendo fechas del proceso: ${nombreProceso} | Tabla: ${proceso.tablaOrigen} | Campo: ${campoFechaOrigen}`);
+
+  let sqlConn = null;
+  let oracleConn = null;
+  try {
+    let glosasValidas = [];
+    if (proceso.filtro) {
+      console.log("🔌 Conectando a Oracle para obtener glosas activas...");
+      oracleConn = await oracledb.getConnection(oracleConfig);
+      
+      const queryOracle = `SELECT TRIM(t.egac_codigo_glosa) FROM oasis.EGAB_GLOSA_ADMINISTRATIVA t WHERE t.egac_estdo = 'A'`;
+      const resultOracle = await oracleConn.execute(queryOracle);
+      glosasValidas = resultOracle.rows.map(row => row[0]);
+      console.log(`   ✅ Glosas válidas obtenidas de Oracle: ${glosasValidas.join(", ")}`);
+    }
+
+    console.log("🔌 Conectando a SQL Server...");
+    sqlConn = await sql.connect(sqlConfig);
+
+    let query = "";
+    const request = sqlConn.request();
+
+    if (proceso.filtro && glosasValidas.length > 0) {
+      glosasValidas.forEach((glosa, i) => {
+        request.input(`glosa${i}`, sql.VarChar, glosa);
+      });
+      const glosasParamList = glosasValidas.map((_, i) => `@glosa${i}`).join(', ');
+
+      query = `
+        SELECT ${campoFechaOrigen} AS fechaProceso
+        FROM (
+            SELECT DISTINCT
+                   ${campoFechaOrigen},
+                   CONVERT(DATE, ${campoFechaOrigen}, 103) AS Fecha
+            FROM ${proceso.tablaOrigen}
+            WHERE CONVERT(DATE, ${campoFechaOrigen}, 103) >= '20260101'
+              AND (MIGRADO IS NULL OR MIGRADO != 'S')
+              AND SUBSTRING(${proceso.filtro.campoOrigen}, 1, ${proceso.filtro.longitudPrefijo}) IN (${glosasParamList})
+        ) T
+        ORDER BY Fecha ASC;
+      `;
+    } else {
+      query = `
+        SELECT ${campoFechaOrigen} AS fechaProceso
+        FROM (
+            SELECT DISTINCT
+                   ${campoFechaOrigen},
+                   CONVERT(DATE, ${campoFechaOrigen}, 103) AS Fecha
+            FROM ${proceso.tablaOrigen}
+            WHERE CONVERT(DATE, ${campoFechaOrigen}, 103) >= '20260101'
+              AND (MIGRADO IS NULL OR MIGRADO != 'S')
+        ) T
+        ORDER BY Fecha ASC;
+      `;
+    }
+
+    const resultado = await request.query(query);
+    const fechas = resultado.recordset.map(row => row.fechaProceso);
+    const fechasFiltradas = fechas.length > 0 ? [fechas[0]] : [];
+    
+    console.log(`   ✅ Fechas obtenidas: ${fechas.length} encontradas. Retornando la menor: ${fechasFiltradas[0] || 'ninguna'}`);
+    return fechasFiltradas;
+  } catch (err) {
+    console.error("\n💥 Error al obtener fechas:", err.message);
+    throw err;
+  } finally {
+    if (oracleConn) {
+      try {
+        await oracleConn.close();
+      } catch (err) {
+        console.error("Error cerrando conexión de Oracle:", err.message);
+      }
+    }
+    if (sqlConn) {
+      try {
+        await sqlConn.close();
+      } catch (err) {
+        console.error("Error cerrando conexión de SQL Server:", err.message);
+      }
+    }
+    console.log("🔌 Conexiones cerradas.");
+  }
+}
+
+async function obtenerFechasMes(procesoNombre, mes, anio) {
+  if (!procesoNombre) {
+    throw new Error("Debe especificarse el proceso.");
+  }
+  if (!mes || !anio) {
+    throw new Error("Debe especificarse mes y año.");
+  }
+
+  const procesos = require("./config/procesos");
+  const nombreProceso = procesoNombre.toUpperCase().trim();
+  const proceso = procesos[nombreProceso];
+
+  if (!proceso) {
+    throw new Error(`Proceso "${nombreProceso}" no encontrado en procesos.js`);
+  }
+
+  const campoFechaConfig = proceso.campos.find(c => c.destino === "EGAF_FECHA_PROCESO");
+  const campoFechaOrigen = campoFechaConfig ? campoFechaConfig.origen.trim() : null;
+
+  if (!campoFechaOrigen) {
+    throw new Error(`El proceso "${nombreProceso}" no tiene un campo de fecha origen mapeado a EGAF_FECHA_PROCESO.`);
+  }
+
+  console.log(`📌 Buscando fechas del proceso: ${nombreProceso} | Mes: ${mes}/${anio}`);
+
+  let sqlConn = null;
+  let oracleConn = null;
+  try {
+    let glosasValidas = [];
+    if (proceso.filtro) {
+      console.log("🔌 Conectando a Oracle para obtener glosas activas...");
+      oracleConn = await oracledb.getConnection(oracleConfig);
+      
+      const queryOracle = `SELECT TRIM(t.egac_codigo_glosa) FROM oasis.EGAB_GLOSA_ADMINISTRATIVA t WHERE t.egac_estdo = 'A'`;
+      const resultOracle = await oracleConn.execute(queryOracle);
+      glosasValidas = resultOracle.rows.map(row => row[0]);
+      console.log(`   ✅ Glosas válidas obtenidas de Oracle: ${glosasValidas.join(", ")}`);
+    }
+
+    console.log("🔌 Conectando a SQL Server...");
+    sqlConn = await sql.connect(sqlConfig);
+
+    let query = "";
+    const request = sqlConn.request();
+    request.input('mes', sql.Int, parseInt(mes, 10));
+    request.input('anio', sql.Int, parseInt(anio, 10));
+
+    if (proceso.filtro && glosasValidas.length > 0) {
+      glosasValidas.forEach((glosa, i) => {
+        request.input(`glosa${i}`, sql.VarChar, glosa);
+      });
+      const glosasParamList = glosasValidas.map((_, i) => `@glosa${i}`).join(', ');
+
+      query = `
+        SELECT ${campoFechaOrigen} AS fechaProceso
+        FROM (
+            SELECT DISTINCT
+                   ${campoFechaOrigen},
+                   CONVERT(DATE, ${campoFechaOrigen}, 103) AS Fecha
+            FROM dbo.${proceso.tablaOrigen}
+            WHERE CONVERT(DATE, ${campoFechaOrigen}, 103) >= '20260101'
+              AND (MIGRADO IS NULL OR MIGRADO != 'S')
+              AND MONTH(CONVERT(DATE, ${campoFechaOrigen}, 103)) = @mes
+              AND YEAR(CONVERT(DATE, ${campoFechaOrigen}, 103)) = @anio
+              AND SUBSTRING(${proceso.filtro.campoOrigen.trim()}, 1, ${proceso.filtro.longitudPrefijo}) IN (${glosasParamList})
+        ) T
+        ORDER BY Fecha ASC;
+      `;
+    } else {
+      query = `
+        SELECT ${campoFechaOrigen} AS fechaProceso
+        FROM (
+            SELECT DISTINCT
+                   ${campoFechaOrigen},
+                   CONVERT(DATE, ${campoFechaOrigen}, 103) AS Fecha
+            FROM dbo.${proceso.tablaOrigen}
+            WHERE CONVERT(DATE, ${campoFechaOrigen}, 103) >= '20260101'
+              AND (MIGRADO IS NULL OR MIGRADO != 'S')
+              AND MONTH(CONVERT(DATE, ${campoFechaOrigen}, 103)) = @mes
+              AND YEAR(CONVERT(DATE, ${campoFechaOrigen}, 103)) = @anio
+        ) T
+        ORDER BY Fecha ASC;
+      `;
+    }
+
+    const resultado = await request.query(query);
+    const fechas = resultado.recordset.map(row => row.fechaProceso);
+    console.log(`   ✅ Fechas encontradas para el mes ${mes}/${anio}: [${fechas.join(", ")}]`);
+    return fechas;
+  } finally {
+    if (oracleConn) {
+      try { await oracleConn.close(); } catch (err) {
+        console.error("Error cerrando conexión de Oracle en obtenerFechasMes:", err.message);
+      }
+    }
+    if (sqlConn) {
+      try { await sqlConn.close(); } catch (err) {
+        console.error("Error cerrando conexión de SQL Server en obtenerFechasMes:", err.message);
+      }
+    }
+    console.log("🔌 Conexiones cerradas.");
+  }
+}
+
+async function runProcessMes({ proceso, mes, anio, ejecutarJob = false, limite = 0 }) {
+  const fechas = await obtenerFechasMes(proceso, mes, anio);
+
+  if (fechas.length === 0) {
+    console.log(`⚠️ No se encontraron fechas pendientes para el proceso ${proceso} en el mes ${mes}/${anio}.`);
+    return { proceso, mes, anio, totalFechas: 0, resultados: [] };
+  }
+
+  console.log(`🚀 Iniciando migración mensual para ${proceso} | ${fechas.length} fecha(s) encontrada(s): [${fechas.join(", ")}]`);
+
+  const resultados = [];
+  for (const fecha of fechas) {
+    console.log(`\n-----------------------------------------`);
+    console.log(`📅 Migrando fecha: ${fecha}`);
+    console.log(`-----------------------------------------`);
+
+    try {
+      const res = await runProcess({ proceso, limite, ejecutarJob, periodo: fecha });
+      resultados.push({ fecha, status: "success", details: res });
+    } catch (err) {
+      console.error(`❌ Error migrando fecha ${fecha}:`, err.message);
+      resultados.push({ fecha, status: "error", error: err.message });
+    }
+  }
+
+  return {
+    proceso,
+    mes,
+    anio,
+    totalFechas: fechas.length,
+    resultados
+  };
+}
+
+module.exports = { parseJsonPayload, runProcess, runObtenerFechas, runProcessMes };
