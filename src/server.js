@@ -13,7 +13,7 @@ app.get("/health", (req, res) => {
 
 app.get("/fechas/:proceso", async (req, res) => {
   try {
-    const { proceso } = req.params;
+    const { proceso }   = req.params;
     const fechas = await runObtenerFechas(proceso);
     res.json({ codigo: "0", mensaje: "Fechas obtenidas exitosamente", fechas });
   } catch (err) {
@@ -44,6 +44,15 @@ app.post("/run-mes", async (req, res) => {
   }
 });
 
+
+
+const { processFtpFiles } = require('./ftpBduaRunner');
+
+app.post('/run-bdua-ftp', (req, res) => {
+  res.json({ codigo: '0', mensaje: 'Proceso BDUA en FTP iniciado en segundo plano' });
+  processFtpFiles().catch(err => console.error('Error en processFtpFiles:', err));
+});
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 API escuchando en http://localhost:${PORT}`);
 });
@@ -59,3 +68,4 @@ server.on("error", (err) => {
   console.error("❌ Error al iniciar el servidor:", err.message);
   process.exit(1);
 });
+
