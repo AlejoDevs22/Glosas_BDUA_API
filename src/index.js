@@ -7,14 +7,15 @@ function isJsonString(value) {
 
 function printUsage() {
   console.error("? Uso:");
-  console.error("   node src/index.js NS [limite] [J]");
-  console.error("   node src/index.js NS J");
-  console.error("   node src/index.js --json '{\"proceso\":\"MC\",\"cantidad\":100,\"j\":\"J\"}'");
-  console.error("   node src/index.js '{\"proceso\":\"NC\",\"cantidad\":0,\"j\":false}'");
+  console.error("   node src/index.js NS [limite] [J] [periodo]");
+  console.error("   node src/index.js NS J [periodo]");
+  console.error("   node src/index.js --json '{\"proceso\":\"MC\",\"cantidad\":100,\"j\":\"J\",\"periodo\":\"202405\"}'");
+  console.error("   node src/index.js '{\"proceso\":\"NC\",\"cantidad\":0,\"j\":false,\"periodo\":\"202405\"}'");
 }
 
 async function main() {
-  const [arg1, arg2, arg3] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const [arg1, arg2, arg3, arg4] = args;
   let payload;
 
   if (!arg1) {
@@ -24,7 +25,7 @@ async function main() {
 
   if (arg1 === "--json" || arg1 === "-j") {
     if (!arg2) {
-      console.error("? Debes pasar el JSON después de --json.");
+      console.error("? Debes pasar el JSON despuï¿½s de --json.");
       process.exit(1);
     }
     payload = parseJsonPayload(arg2);
@@ -34,20 +35,29 @@ async function main() {
     const proceso = arg1.toUpperCase();
     let limite = 0;
     let ejecutarJob = false;
+    let periodo = null;
 
     if (arg2) {
       if (arg2.toUpperCase() === "J") {
         ejecutarJob = true;
+      } else if (/^\d+$/.test(arg2)) {
+        limite = parseInt(arg2, 10);
       } else {
-        limite = parseInt(arg2, 10) || 0;
+        periodo = arg2;
       }
     }
 
-    if (arg3?.toUpperCase() === "J") {
-      ejecutarJob = true;
+    if (arg3) {
+      if (arg3.toUpperCase() === "J") {
+        ejecutarJob = true;
+      } else if (!periodo) {
+        periodo = arg3;
+      }
     }
 
-    payload = { proceso, limite, ejecutarJob };
+    if (arg4) periodo = arg4;
+
+    payload = { proceso, limite, ejecutarJob, periodo };
   }
 
   try {

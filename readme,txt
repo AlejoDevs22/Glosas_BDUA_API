@@ -75,3 +75,8 @@ También se acepta la opción `--json`:
 ## Ejecución recomendada
 
    npm run run-json -- '{"proceso":"MC","cantidad":0,"j":"J"}'
+
+Sin límite de registros: node src/index.js NS 4/04/2014
+Con límite de 100 registros: node src/index.js NS 100 4/04/2014
+Con límite y lanzando el Job Oracle: node src/index.js MC 100 J 4/04/2014
+Sin límite y lanzando el Job Oracle: node src/index.js MC J 4/04/2014

@@ -8,13 +8,20 @@
     "serve": "node src/server.js",
     "run-json": "node src/index.js --json",
     "migrate": "node src/migration/migrar.js",
-    "test-connections": "node src/testConexion.js"
+    "test-connections": "node src/testConexion.js",
+    "setup-db": "node src/migration/crearColumnas.js"
   },
   "dependencies": {
+    "basic-ftp": "^6.2.1",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.22.2",
-    "mssql": "^12.2.1",
-    "oracledb": "^6.10.0"
+    "mssql": "^11.0.1",
+    "oracledb": "^6.10.0",
+    "pg": "^8.23.0"
   },
-  "type": "commonjs"
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.15.0"
+  }
 }
