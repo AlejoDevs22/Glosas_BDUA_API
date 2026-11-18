@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: require("node:path").resolve(__dirname, "../.env") });
 const sql = require("mssql");
 const oracledb = require("oracledb");
 const sqlConfig = require("./config/sqlserver");
@@ -76,7 +76,7 @@ async function runProcess({ proceso, limite = 0, ejecutarJob = false, periodo = 
     sqlConn = await sql.connect(sqlConfig);
 
     console.log("🔌 Conectando a Oracle...");
-    oracleConn = await oracledb.getConnection(oracleConfig);
+    oracleConn = await oracledb.getConnection(oracleConfig());
 
     await migrar(proceso, sqlConn, oracleConn, limite, periodo);
 
@@ -123,7 +123,7 @@ async function runObtenerFechas(procesoNombre) {
     let glosasValidas = [];
     if (proceso.filtro) {
       console.log("🔌 Conectando a Oracle para obtener glosas activas...");
-      oracleConn = await oracledb.getConnection(oracleConfig);
+      oracleConn = await oracledb.getConnection(oracleConfig());
       
       const queryOracle = `SELECT TRIM(t.egac_codigo_glosa) FROM oasis.EGAB_GLOSA_ADMINISTRATIVA t WHERE t.egac_estdo = 'A'`;
       const resultOracle = await oracleConn.execute(queryOracle);
@@ -230,7 +230,7 @@ async function obtenerFechasMes(procesoNombre, mes, anio) {
     let glosasValidas = [];
     if (proceso.filtro) {
       console.log("🔌 Conectando a Oracle para obtener glosas activas...");
-      oracleConn = await oracledb.getConnection(oracleConfig);
+      oracleConn = await oracledb.getConnection(oracleConfig());
       
       const queryOracle = `SELECT TRIM(t.egac_codigo_glosa) FROM oasis.EGAB_GLOSA_ADMINISTRATIVA t WHERE t.egac_estdo = 'A'`;
       const resultOracle = await oracleConn.execute(queryOracle);

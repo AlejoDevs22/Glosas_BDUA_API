@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+/*
 // src/migration/migrar.js
 const sql = require("mssql");
 const procesos = require("../config/procesos");
@@ -262,7 +262,7 @@ async function migrar(nombreProceso, sqlConn, oracleConn, limite = 0, periodo = 
   return { insertados, errores };
 }
 
-=======
+*/
 // src/migration/migrar.js
 const sql = require("mssql");
 const procesos = require("../config/procesos");
@@ -526,5 +526,4 @@ async function migrar(nombreProceso, sqlConn, oracleConn, limite = 0, periodo = 
   return { insertados, errores };
 }
 
->>>>>>> c195d0aa8a889d50a50c8f7584d6506df29e01f5
 module.exports = { migrar };

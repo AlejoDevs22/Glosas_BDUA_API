@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+/*
 // src/config/procesos.js
 // Cada "proceso" representa una migración de tabla origen → destino
 // Para agregar nuevas tablas en el futuro, solo agrega un nuevo objeto aquí
@@ -224,7 +224,7 @@ const procesos = {
   // },
 };
 
-=======
+*/
 // src/config/procesos.js
 // Cada "proceso" representa una migración de tabla origen → destino
 // Para agregar nuevas tablas en el futuro, solo agrega un nuevo objeto aquí
@@ -450,5 +450,4 @@ const procesos = {
   // },
 };
 
->>>>>>> c195d0aa8a889d50a50c8f7584d6506df29e01f5
 module.exports = procesos;

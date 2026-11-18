@@ -33,7 +33,7 @@ async function testSqlServer() {
 
 async function testOracle() {
   console.log('Probando conexión Oracle...');
-  const connection = await oracledb.getConnection(oracleConfig);
+  const connection = await oracledb.getConnection(oracleConfig());
   await connection.close();
   console.log('✅ Conexión Oracle exitosa');
 }

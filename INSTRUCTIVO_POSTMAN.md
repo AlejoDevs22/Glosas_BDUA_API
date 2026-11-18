@@ -19,8 +19,10 @@ Antes de iniciar el servicio, asegúrate de:
    ```
 5. Preparar la estructura de la base de datos SQL Server ejecutando (esto agregará de forma segura el campo de marcado de control `MIGRADO` a las tablas origen):
    ```bash
-   npm run setup-db
-   ```
+    npm run setup-db
+    ```
+
+La conexión Oracle requiere `ORACLE_USER`, `ORACLE_PASSWORD` y una cadena en `ORACLE_CONNECT_STRING` (también se admite el nombre anterior `ORACLE_CONNECTION_STRING`). La cadena debe tener el formato Oracle configurado para el entorno, por ejemplo `host:1521/servicio`. Si el servicio se despliega en otro servidor, configure estas variables en el entorno del proceso que ejecuta esta API; las variables de la aplicación que la consume no se comparten con el servicio.
 
 ---
 
