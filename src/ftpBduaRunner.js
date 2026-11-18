@@ -6,19 +6,20 @@ const sql = require('mssql');
 const { Pool } = require('pg');
 const sqlConfig = require('./config/sqlserver'); // Assuming this exists from original project
 
+
 // Configuración PostgreSQL para auditoría
 const pgPool = new Pool({
     user: process.env.PG_USER || 'postgres',
     host: process.env.PG_HOST || 'localhost',
     database: process.env.PG_DATABASE || 'auditoria_db',
-    password: process.env.PG_PASSWORD || 'password',
+    password: process.env.PG_PASSWORD || '212230',
     port: process.env.PG_PORT || 5432,
 });
 
 const FTP_HOST = "192.168.50.10";
-const FTP_USER = "ftp_genesis";
-const FTP_PASS = "Senador2019!";
-const FTP_DIR = "/cargues_bdua/";
+const FTP_USER = "ftp_aseguramiento";
+const FTP_PASS = "Control2021!";
+const FTP_DIR = "/Contributivo/";
 
 function quote(val) {
     if (val === undefined || val === null) return "''";

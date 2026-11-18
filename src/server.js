@@ -1,9 +1,20 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { parseJsonPayload, runProcess, runObtenerFechas, runProcessMes } = require("./jsonRunner");
+const { processFtpFiles } = require('./ftpBduaRunner');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5030;
+
+app.use(cors({
+  methods: ['GET', 'POST'],
+  origin: ['https://genesis.protegereps.com/app.php#/gestionglosasbdua', 
+          'https://genesis.protegereps.com', 
+          'https://192.168.52.8/Genesis/app.php#/gestionglosasbdua',
+          'https://192.168.52.8/Genesis',
+          ]
+}))
 
 app.use(express.json());
 
@@ -13,7 +24,7 @@ app.get("/health", (req, res) => {
 
 app.get("/fechas/:proceso", async (req, res) => {
   try {
-    const { proceso }   = req.params;
+    const { proceso } = req.params;
     const fechas = await runObtenerFechas(proceso);
     res.json({ codigo: "0", mensaje: "Fechas obtenidas exitosamente", fechas });
   } catch (err) {
@@ -44,10 +55,6 @@ app.post("/run-mes", async (req, res) => {
   }
 });
 
-
-
-const { processFtpFiles } = require('./ftpBduaRunner');
-
 app.post('/run-bdua-ftp', (req, res) => {
   res.json({ codigo: '0', mensaje: 'Proceso BDUA en FTP iniciado en segundo plano' });
   processFtpFiles().catch(err => console.error('Error en processFtpFiles:', err));
@@ -68,4 +75,3 @@ server.on("error", (err) => {
   console.error("❌ Error al iniciar el servidor:", err.message);
   process.exit(1);
 });
-
